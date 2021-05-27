@@ -1,4 +1,5 @@
 import pygame,sys,os
+from globe import Globe
 pygame.init()
 
 
@@ -54,7 +55,12 @@ class Button(pygame.sprite.Sprite):
 class Menu:
 
     background = pygame.image.load(os.path.join('images','world_map.jpg'))
-    font = pygame.font.SysFont("calibri",80)
+    font = pygame.font.SysFont("calibri",80,bold=True)
+
+
+
+
+
     def __init__(self,screen_width,screen_height):
         self.screen = pygame.display.set_mode((screen_width,screen_height))
         self.screen_width = screen_width
@@ -63,13 +69,23 @@ class Menu:
         self.background = pygame.transform.scale(self.background,(self.screen_width,self.screen_height))
         self.title_text = self.font.render("GEO WHIZ",True,RED)
         self.title_text_rect = self.title_text.get_rect(center=(self.screen_width//2,50 + self.title_text.get_height()//2))
+        rows = 8
+        cols = 9
+        width = height = 450
+        size = 200
         gap = 50
-        top = self.title_text_rect.bottom + gap
+        globe = Globe(self.screen_width//2,self.title_text_rect.bottom + gap * 2,size,rows,cols,width,height,os.path.join('images','globe.png'))
+        self.globe = pygame.sprite.GroupSingle(globe)
+
+        top = globe.rect.bottom + gap 
         self.buttons = pygame.sprite.Group()
         labels = ('COUNTRY ' + u"\u2192" + " CAPITAL" ,'CAPITAL ' + u"\u2192" + ' COUNTRY','FLAG ' + u"\u2192" + ' COUNTRY')
         button_width = 400
         button_height = 100
         button_font = pygame.font.SysFont("calibri",40)
+        pygame.mixer.music.load('mainmenu.ogg')
+
+
         for i in range(3):
             button = Button(self.screen_width//2 -button_width//2,top + (button_height + gap) * i,labels[i],BLACK,button_font,RED,button_width,button_height)
             self.buttons.add(button)
@@ -77,12 +93,20 @@ class Menu:
         self._start()
 
     def _start(self):
+        
+        
 
+        GLOBE_EVENT = pygame.USEREVENT + 2 
+        milliseconds = 100
+        pygame.time.set_timer(GLOBE_EVENT,milliseconds)
+        pygame.mixer.music.play(-1)
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                if event.type == GLOBE_EVENT:
+                    self.globe.update()
             
 
             point = pygame.mouse.get_pos()
@@ -95,6 +119,7 @@ class Menu:
             self.screen.blit(self.background,(0,0))
             self.screen.blit(self.title_text,self.title_text_rect)
             self.buttons.draw(self.screen)
+            self.globe.draw(self.screen)
             pygame.display.update()
         
 
