@@ -5,6 +5,9 @@ pygame.init()
 WHITE = (255,) * 3
 BLACK = (0,) * 3
 RED = (255,0,0)
+BGCOLOR = (64,224,208)
+ORANGE = (242,133,0)
+CORAL = (255,127,80)
 
 class Button(pygame.sprite.Sprite):
 
@@ -52,19 +55,22 @@ class Button(pygame.sprite.Sprite):
 
 
 
-
+BACK_IMAGE = BACK_IMAGE_RECT =  None
 
 class Menu:
 
     background = pygame.image.load(os.path.join('images','world_map.jpg'))
     font = pygame.font.SysFont("calibri",80,bold=True)
 
-
+    button_font = pygame.font.SysFont("calibri",40)
 
 
 
     def __init__(self,screen_width,screen_height):
+        global BACK_IMAGE,BACK_IMAGE_RECT
         self.screen = pygame.display.set_mode((screen_width,screen_height))
+        BACK_IMAGE= pygame.transform.scale(pygame.image.load(os.path.join('images','back.png')).convert_alpha(),(50,50))
+        BACK_IMAGE_RECT =BACK_IMAGE.get_rect(topleft=(0,0))
         self.screen_width = screen_width
         self.screen_height = screen_height
         pygame.display.set_caption("GEO WHIZ")
@@ -103,6 +109,7 @@ class Menu:
         pygame.time.set_timer(GLOBE_EVENT,milliseconds)
         pygame.mixer.music.play(-1)
         while True:
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -113,8 +120,9 @@ class Menu:
                     point = pygame.mouse.get_pos()
                     for i,button in enumerate(self.buttons):
                         if button.clicked_on(point):
-                            self.instructions(i)
+                            result= self.instructions(i)
                             break
+
 
             
 
@@ -133,8 +141,42 @@ class Menu:
         
     def instructions(self,number):
         
-        title_text = self.font.render("INSTRUCTIONS",True,BLACK)
+        
+        self.font.set_underline(True)
+        title_text = self.font.render("INSTRUCTIONS",True,CORAL)
+        self.font.set_underline(False)
         title_text_rect = title_text.get_rect(center=(self.screen_width//2,50 + title_text.get_height()//2))
+
+        
+        button_width = 400
+        button_height = 100
+        gap = 50
+        button = Button(self.screen_width//2 -button_width//2,self.screen_height - gap - button_height,"START",BGCOLOR,self.font,CORAL,button_width,button_height)
+        button = pygame.sprite.GroupSingle(button)
+        if number == 0:
+            instructions_text = self.font.render("GUESS THE CAPITAL OF THE COUNTRY!",True,CORAL)
+        elif number == 1:
+            instructions_text = self.font.render("GUESS THE COUNTRY OF THE CAPITAL!",True,CORAL)
+        else:
+            instructions_text = self.font.render("GUESS THE COUNTRY FROM THE FLAG!",True,CORAL)
+        
+
+        instructions_text_2 = self.font.render("HAVE THREE LIVES!",True,CORAL)
+        instructions_text_3 = self.font.render("GAIN A LIFE ON A STREAK OF 10 CORRECT!",True,CORAL)
+        instructions_text_4 = self.font.render("TRY AND ANSWER AS MANY AS YOU CAN!",True,CORAL)
+
+
+        gap = 10        
+        instructions_text_rect = instructions_text.get_rect(topleft=(self.screen_width//2 - instructions_text.get_width()//2,title_text_rect.bottom + gap ))
+
+        instructions_text_2_rect = instructions_text_2.get_rect(topleft=(self.screen_width//2 - instructions_text_2.get_width()//2,instructions_text_rect.bottom + 50))
+
+        instructions_text_3_rect = instructions_text_3.get_rect(topleft=(self.screen_width//2 - instructions_text_3.get_width()//2,instructions_text_2_rect.bottom + 50))
+        instructions_text_4_rect = instructions_text_4.get_rect(topleft=(self.screen_width//2 - instructions_text_4.get_width()//2,instructions_text_3_rect.bottom + 50))
+        
+
+        texts = [(title_text,title_text_rect),(instructions_text,instructions_text_rect),(instructions_text_2,instructions_text_2_rect),(instructions_text_3,instructions_text_3_rect),(instructions_text_4,instructions_text_4_rect)]
+
 
 
         while True:
@@ -146,19 +188,67 @@ class Menu:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         return
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+                    
+
+                    if BACK_IMAGE_RECT.collidepoint(point):
+                        return "back"
+
+                    if button.sprite.clicked_on(point):
+                        Game(self.screen,number)
 
 
-            self.screen.fill(WHITE)
-            self.screen.blit(title_text,title_text_rect)
+
+
+
+
+
+
+            point = pygame.mouse.get_pos()
+
+            button.update(point)
+            self.screen.fill(BGCOLOR)
+            for text,text_rect in texts:
+                self.screen.blit(text,text_rect)
+            button.draw(self.screen)
+            self.screen.blit(BACK_IMAGE,BACK_IMAGE_RECT)
             pygame.display.update()
 
+class Game:
 
 
+    def __init__(self,screen,mode):
+        self.screen = screen
+        self.mode = mode
+        self.play()
+    
+    def play(self):
+
+
+        while True:
+
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+                    if BACK_IMAGE_RECT.collidepoint(point):
+                        return 
+
+
+            
+
+            self.screen.fill(WHITE)
+            self.screen.blit(BACK_IMAGE,BACK_IMAGE_RECT)
+            pygame.display.update()
 
 
 if __name__ == "__main__":
     
-    SCREEN_WIDTH = 1000
+    SCREEN_WIDTH = 1500
     SCREEN_HEIGHT = 800
     Menu(SCREEN_WIDTH,SCREEN_HEIGHT)
 
