@@ -2,7 +2,6 @@ import pygame,sys,os
 from globe import Globe
 pygame.init()
 
-
 WHITE = (255,) * 3
 BLACK = (0,) * 3
 RED = (255,0,0)
@@ -46,7 +45,10 @@ class Button(pygame.sprite.Sprite):
             self.image = self.original_image
             self.hovered_on = False
 
+    
+    def clicked_on(self,point):
 
+        return self.rect.collidepoint(point)
 
 
 
@@ -107,6 +109,13 @@ class Menu:
                     sys.exit()
                 if event.type == GLOBE_EVENT:
                     self.globe.update()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+                    for i,button in enumerate(self.buttons):
+                        if button.clicked_on(point):
+                            self.instructions(i)
+                            break
+
             
 
             point = pygame.mouse.get_pos()
@@ -122,6 +131,27 @@ class Menu:
             self.globe.draw(self.screen)
             pygame.display.update()
         
+    def instructions(self,number):
+        
+        title_text = self.font.render("INSTRUCTIONS",True,BLACK)
+        title_text_rect = title_text.get_rect(center=(self.screen_width//2,50 + title_text.get_height()//2))
+
+
+        while True:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return
+
+
+            self.screen.fill(WHITE)
+            self.screen.blit(title_text,title_text_rect)
+            pygame.display.update()
+
 
 
 
