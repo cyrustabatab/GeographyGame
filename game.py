@@ -1,5 +1,7 @@
 import pygame,sys,os
+from abc import ABC,abstractmethod
 from globe import Globe
+import random
 pygame.init()
 
 WHITE = (255,) * 3
@@ -143,27 +145,31 @@ class Menu:
         
         
         self.font.set_underline(True)
-        title_text = self.font.render("INSTRUCTIONS",True,CORAL)
+        title_text = self.font.render("INSTRUCTIONS",True,BLACK)
         self.font.set_underline(False)
         title_text_rect = title_text.get_rect(center=(self.screen_width//2,50 + title_text.get_height()//2))
+
+
+        if number == 0:
+            mode = CountryToCapital
 
         
         button_width = 400
         button_height = 100
         gap = 50
-        button = Button(self.screen_width//2 -button_width//2,self.screen_height - gap - button_height,"START",BGCOLOR,self.font,CORAL,button_width,button_height)
+        button = Button(self.screen_width//2 -button_width//2,self.screen_height - gap - button_height,"START",BLACK,self.font,CORAL,button_width,button_height)
         button = pygame.sprite.GroupSingle(button)
         if number == 0:
-            instructions_text = self.font.render("GUESS THE CAPITAL OF THE COUNTRY!",True,CORAL)
+            instructions_text = self.font.render("GUESS THE CAPITAL OF THE COUNTRY!",True,BLACK)
         elif number == 1:
-            instructions_text = self.font.render("GUESS THE COUNTRY OF THE CAPITAL!",True,CORAL)
+            instructions_text = self.font.render("GUESS THE COUNTRY OF THE CAPITAL!",True,BLACK)
         else:
-            instructions_text = self.font.render("GUESS THE COUNTRY FROM THE FLAG!",True,CORAL)
+            instructions_text = self.font.render("GUESS THE COUNTRY FROM THE FLAG!",True,BLACK)
         
 
-        instructions_text_2 = self.font.render("HAVE THREE LIVES!",True,CORAL)
-        instructions_text_3 = self.font.render("GAIN A LIFE ON A STREAK OF 10 CORRECT!",True,CORAL)
-        instructions_text_4 = self.font.render("TRY AND ANSWER AS MANY AS YOU CAN!",True,CORAL)
+        instructions_text_2 = self.font.render("HAVE THREE LIVES!",True,BLACK)
+        instructions_text_3 = self.font.render("GAIN A LIFE ON A STREAK OF 10 CORRECT!",True,BLACK)
+        instructions_text_4 = self.font.render("TRY AND ANSWER AS MANY AS YOU CAN!",True,BLACK)
 
 
         gap = 10        
@@ -196,7 +202,10 @@ class Menu:
                         return "back"
 
                     if button.sprite.clicked_on(point):
-                        Game(self.screen,number)
+                        mode(self.screen)
+                        pygame.mixer.music.load('mainmenu.ogg')
+                        pygame.mixer.music.play(-1)
+
 
 
 
@@ -215,17 +224,20 @@ class Menu:
             self.screen.blit(BACK_IMAGE,BACK_IMAGE_RECT)
             pygame.display.update()
 
-class Game:
+class Game(ABC):
 
-
-    def __init__(self,screen,mode):
+    font = pygame.font.SysFont("calibri",100,bold=True)
+    def __init__(self,screen):
         self.screen = screen
-        self.mode = mode
-        self.play()
+        self.screen_width = self.screen.get_width()
+        self.screen_height = self.screen.get_height()
+        pygame.mixer.music.load("music.ogg")
+
+
     
     def play(self):
 
-
+        pygame.mixer.music.play(-1)
         while True:
 
 
@@ -237,13 +249,83 @@ class Game:
                     point = pygame.mouse.get_pos()
                     if BACK_IMAGE_RECT.collidepoint(point):
                         return 
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        self.new_question()
 
 
             
 
-            self.screen.fill(WHITE)
+            self.screen.fill(BGCOLOR)
             self.screen.blit(BACK_IMAGE,BACK_IMAGE_RECT)
+            self.screen.blit(self.header_text,self.header_text_rect)
+            self.screen.blit(self.question_text,self.question_text_rect)
             pygame.display.update()
+
+        
+        @abstractmethod
+        def new_question(self):
+            pass
+
+
+        @abstractmethod
+        def _setup(self):
+            pass
+
+
+        @abstractmethod
+        def _read_data(self):
+            pass
+
+class CountryToCapital(Game):
+    
+    file_name = "countries_and_capitals.csv"
+    Game.font.set_underline(True)
+    header_text= Game.font.render("CAPITAL OF",True, BLACK)
+    Game.font.set_underline(False)
+    def __init__(self,screen):
+        super().__init__(screen)
+        
+        self._read_data()
+
+        self._setup()
+        self.play()
+
+    
+
+    def new_question(self):
+        question,answer = self.countries.pop()
+
+        self.question_text = self.font.render(question + "?",True,BLACK)
+
+        self.question_text_rect = self.question_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
+
+
+
+    
+    def _setup(self):
+
+
+        self.header_text_rect= self.header_text.get_rect(center=(self.screen_width//2,50 + self.header_text.get_height()//2))
+        self.new_question()
+
+
+
+
+
+
+    def _read_data(self):
+        self.countries = []
+        with open(self.file_name,'r') as f:
+            for i,line in enumerate(f):
+                if i == 0:
+                    continue
+                country,capital = line.split(',')
+                self.countries.append((country.upper(),capital.upper()))
+        
+
+        random.shuffle(self.countries)
+
 
 
 if __name__ == "__main__":
