@@ -1,9 +1,13 @@
 import pygame,sys,os
 from abc import ABC,abstractmethod
 from globe import Globe
+import time
 import random
 pygame.init()
 
+
+clock = pygame.time.Clock()
+FPS = 60
 WHITE = (255,) * 3
 BLACK = (0,) * 3
 RED = (255,0,0)
@@ -233,11 +237,75 @@ class Game(ABC):
         self.screen_height = self.screen.get_height()
         pygame.mixer.music.load("music.ogg")
 
+    
+
+    
+
+    def  _update_answer_based_on_key_pressed(self,user_answer,key):
+
+        
+
+        if key == pygame.K_BACKSPACE:
+            if user_answer: 
+                last = user_answer[-1]
+                if last == '|':
+                    user_answer = user_answer[:-2] + '|'
+                else:
+                    user_answer = user_answer[:-1]
+        else:
+            key = chr(key).upper()
+
+            if user_answer:
+                last = user_answer[-1]
+
+                if last == '|':
+                    user_answer = user_answer[:-1] + key + '|'
+                else:
+                    user_answer += key
+            else:
+                user_answer += key
+
+
+        return user_answer 
+
+
+
+
+
+    
+
+    def _get_flicker_answer(self):
+
+        actual_user_answer = self.user_answer if self.user_answer and self.user_answer[-1] == '|' else self.user_answer + '|'
+        user_answer_text = self.font.render(self.user_answer,True,BLACK)
+        actual_answer_text = self.font.render(actual_user_answer,True,BLACK)
+        bottom_gap = 50
+        user_answer_rect = actual_answer_text.get_rect(center=(self.screen_width//2,self.screen_height - bottom_gap -  actual_answer_text.get_height()//2))
+
+        return user_answer_text,user_answer_rect
+
+
+
+
+    
+
 
     
     def play(self):
 
         pygame.mixer.music.play(-1)
+
+        self.user_answer = '|'
+        
+
+        bottom_gap = 50
+        user_answer_text = self.font.render(self.user_answer,True,BLACK)
+        user_answer_rect = user_answer_text.get_rect(center=(self.screen_width//2,self.screen_height - bottom_gap -  user_answer_text.get_height()//2))
+
+        FLICKER_EVENT = pygame.USEREVENT + 1
+        milliseconds = 300
+        pygame.time.set_timer(FLICKER_EVENT,milliseconds)
+        last_back_space_start = None
         while True:
 
 
@@ -251,7 +319,50 @@ class Game(ABC):
                         return 
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN:
+                        print(self.user_answer)
                         self.new_question()
+                    if pygame.K_a <= event.key <= pygame.K_z or (self.user_answer not in ('','|') and event.key == pygame.K_SPACE):
+                        self.user_answer = self._update_answer_based_on_key_pressed(self.user_answer,event.key)
+                        user_answer_text,user_answer_rect = self._get_flicker_answer()
+
+                elif event.type == FLICKER_EVENT:
+                    
+                    if self.user_answer:
+                        last = self.user_answer[-1]
+                        if last == '|':
+                            self.user_answer = self.user_answer[:-1]
+                        else:
+                            self.user_answer += '|'
+                    else:
+                        self.user_answer = '|'
+                    
+
+                    user_answer_text,user_answer_rect = self._get_flicker_answer()
+
+
+
+            
+
+            keys_pressed = pygame.key.get_pressed()
+
+
+            if keys_pressed[pygame.K_BACKSPACE]:
+                if last_back_space_start:
+                    current_time = time.time()
+                    if current_time - last_back_space_start >= 0.10:
+                        self.user_answer = self._update_answer_based_on_key_pressed(self.user_answer,pygame.K_BACKSPACE)
+                        user_answer_text,user_answer_rect = self._get_flicker_answer()
+                        last_back_space_start = time.time()
+                else:
+                    self.user_answer = self._update_answer_based_on_key_pressed(self.user_answer,pygame.K_BACKSPACE)
+                    user_answer_text,user_answer_rect = self._get_flicker_answer()
+                    last_back_space_start = time.time()
+            elif last_back_space_start:
+                last_back_space_start = None
+
+
+
+
 
 
             
@@ -260,7 +371,9 @@ class Game(ABC):
             self.screen.blit(BACK_IMAGE,BACK_IMAGE_RECT)
             self.screen.blit(self.header_text,self.header_text_rect)
             self.screen.blit(self.question_text,self.question_text_rect)
+            self.screen.blit(user_answer_text,user_answer_rect)
             pygame.display.update()
+            clock.tick(FPS)
 
         
         @abstractmethod
