@@ -207,9 +207,12 @@ class Menu:
                         return "back"
 
                     if button.sprite.clicked_on(point):
-                        mode(self.screen)
+                        result = mode(self.screen).play()
                         pygame.mixer.music.load('mainmenu.ogg')
                         pygame.mixer.music.play(-1)
+                        print(result)
+                        if result == 'menu':
+                            return
 
 
 
@@ -233,6 +236,8 @@ class Game(ABC):
 
     font = pygame.font.SysFont("calibri",100,bold=True)
     heart_image = pygame.transform.scale(pygame.image.load(os.path.join('images','heart.png')),(50,50))
+    correct_sound = pygame.mixer.Sound('positive.wav')
+    incorrect_sound = pygame.mixer.Sound('negative.wav')
     def __init__(self,screen,lives=3):
         self.screen = screen
         self.screen_width = self.screen.get_width()
@@ -240,6 +245,17 @@ class Game(ABC):
         pygame.mixer.music.load("music.ogg")
         self.correct_text = self.font.render("CORRECT!",True,GREEN)
         self.incorrect_text = self.font.render("INCORRECT!",True,RED)
+        self.game_over_text = self.font.render("GAME OVER",True,RED)
+        self.game_over_rect = self.game_over_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
+        
+        button_width = 500
+        button_height = 100
+        gap = 50
+        play_again_button = Button(self.screen_width//2 -button_width//2,self.screen_height//4 - button_height//2,"PLAY AGAIN",BLACK,self.font,CORAL,button_width,button_height)
+        menu_button = Button(self.screen_width//2 -button_width//2,self.screen_height//2 + self.screen_height//4 - button_height//2,"MENU",BLACK,self.font,CORAL,button_width,button_height)
+        self.buttons = pygame.sprite.Group(play_again_button,menu_button)
+        self.game_over = False
+        self.result_text_2 = None
         self.lives = lives
 
     
@@ -308,15 +324,31 @@ class Game(ABC):
 
     def _check_user_answer(self):
         
-        print(self.answer)
         self.user_answer = self.user_answer if self.user_answer[-1] != '|' else self.user_answer[:-1]
         if self.user_answer != self.answer:
+            self.incorrect_sound.play()
             self.result_text = self.incorrect_text
+            self.result_text_rect = self.incorrect_text_rect
+            self.result_text_2 = self.font.render(self.answer,True,RED)
+            self.result_text_2_rect = self.result_text_2.get_rect(center=(self.screen_width//2,self.question_text_rect.bottom + 50 + self.result_text_2.get_height()//2))
+
             self.lives -= 1
         else:
+            self.correct_sound.play()
+            self.result_text_rect = self.correct_text_rect
             self.result_text = self.correct_text
+            self.result_text_2 = None
 
-        self.result_text_rect = self.result_text.get_rect(center=(self.screen_width//2,self.header_text_rect.bottom + 50 + self.result_text.get_height()//2))
+    
+    def _reset(self):
+        self.game_over = False
+        self.lives = 3
+        pygame.mixer.music.load("music.ogg")
+        pygame.mixer.music.play(-1)
+
+
+        return self.new_question()
+
 
     
     def play(self):
@@ -344,10 +376,26 @@ class Game(ABC):
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
+
                     point = pygame.mouse.get_pos()
                     if BACK_IMAGE_RECT.collidepoint(point):
                         return 
-                elif event.type == pygame.KEYDOWN:
+                    if self.game_over:
+                        broke = False
+                        for i,button in enumerate(self.buttons):
+                            if button.clicked_on(point):
+                                if i == 1:
+                                    return "menu"
+                                user_answer_text,user_answer_rect = self._reset()
+                                break
+                            else:
+                                continue
+
+                            break
+
+
+                    
+                elif not self.game_over and not result_start_time and event.type == pygame.KEYDOWN:
                     if self.user_answer not in ('|','') and event.key == pygame.K_RETURN:
                         self._check_user_answer()
                         result_start_time = time.time()
@@ -355,7 +403,7 @@ class Game(ABC):
                         self.user_answer = self._update_answer_based_on_key_pressed(self.user_answer,event.key)
                         user_answer_text,user_answer_rect = self._get_flicker_answer()
 
-                elif event.type == FLICKER_EVENT:
+                elif not result_start_time and not self.game_over and event.type == FLICKER_EVENT:
                     
                     if self.user_answer:
                         last = self.user_answer[-1]
@@ -371,45 +419,58 @@ class Game(ABC):
 
 
         
-            if result_start_time: 
-                if current_time - result_start_time >= 2:
-                    user_answer_text,user_answer_rect = self.new_question()
-                    result_start_time = None
+            self.screen.fill(BGCOLOR)
+            self.screen.blit(BACK_IMAGE,BACK_IMAGE_RECT)
+
+            if not self.game_over:
+                if result_start_time: 
+                    if current_time - result_start_time >= 2:
+                        if self.lives == 0:
+                            pygame.mixer.music.load("Retro_No hope.ogg")
+                            pygame.mixer.music.play()
+                            self.game_over = True
+                        user_answer_text,user_answer_rect = self.new_question()
+                        result_start_time = None
 
 
-            keys_pressed = pygame.key.get_pressed()
+                keys_pressed = pygame.key.get_pressed()
 
 
-            if keys_pressed[pygame.K_BACKSPACE]:
-                if last_back_space_start:
-                    current_time = time.time()
-                    if current_time - last_back_space_start >= 0.10:
+                if keys_pressed[pygame.K_BACKSPACE]:
+                    if last_back_space_start:
+                        current_time = time.time()
+                        if current_time - last_back_space_start >= 0.10:
+                            self.user_answer = self._update_answer_based_on_key_pressed(self.user_answer,pygame.K_BACKSPACE)
+                            user_answer_text,user_answer_rect = self._get_flicker_answer()
+                            last_back_space_start = time.time()
+                    else:
                         self.user_answer = self._update_answer_based_on_key_pressed(self.user_answer,pygame.K_BACKSPACE)
                         user_answer_text,user_answer_rect = self._get_flicker_answer()
                         last_back_space_start = time.time()
-                else:
-                    self.user_answer = self._update_answer_based_on_key_pressed(self.user_answer,pygame.K_BACKSPACE)
-                    user_answer_text,user_answer_rect = self._get_flicker_answer()
-                    last_back_space_start = time.time()
-            elif last_back_space_start:
-                last_back_space_start = None
+                elif last_back_space_start:
+                    last_back_space_start = None
 
 
 
 
 
 
-            
+                
 
-            self.screen.fill(BGCOLOR)
-            self.screen.blit(BACK_IMAGE,BACK_IMAGE_RECT)
-            self.screen.blit(self.header_text,self.header_text_rect)
-            self.screen.blit(self.question_text,self.question_text_rect)
-            self.screen.blit(user_answer_text,user_answer_rect)
-            if result_start_time:
-                self.screen.blit(self.result_text,self.result_text_rect)
+                self.screen.blit(self.header_text,self.header_text_rect)
+                self.screen.blit(self.question_text,self.question_text_rect)
+                self.screen.blit(user_answer_text,user_answer_rect)
+                if result_start_time:
+                    self.screen.blit(self.result_text,self.result_text_rect)
+                    if self.result_text_2:
+                        self.screen.blit(self.result_text_2,self.result_text_2_rect)
 
-            self._draw_lives()
+                self._draw_lives()
+            else:
+                point = pygame.mouse.get_pos()
+                self.buttons.update(point)
+                self.buttons.draw(self.screen)
+                self.screen.blit(self.game_over_text,self.game_over_rect)
             pygame.display.update()
             clock.tick(FPS)
 
@@ -445,7 +506,6 @@ class CountryToCapital(Game):
         self._read_data()
 
         self._setup()
-        self.play()
 
     
 
@@ -466,6 +526,8 @@ class CountryToCapital(Game):
 
 
         self.header_text_rect= self.header_text.get_rect(center=(self.screen_width//2,50 + self.header_text.get_height()//2))
+        self.correct_text_rect = self.correct_text.get_rect(center=(self.screen_width//2,self.header_text_rect.bottom + 50 + self.correct_text.get_height()//2))
+        self.incorrect_text_rect = self.incorrect_text.get_rect(center=(self.screen_width//2,self.header_text_rect.bottom + 50 + self.incorrect_text.get_height()//2))
         self.new_question()
 
 
