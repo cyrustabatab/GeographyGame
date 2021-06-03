@@ -157,6 +157,9 @@ class Menu:
 
         if number == 0:
             mode = CountryToCapital
+        elif number == 1:
+            mode = CapitalToCountry
+
 
         
         button_width = 400
@@ -494,6 +497,9 @@ class Game(ABC):
     def _read_data(self):
         pass
 
+
+
+
 class CountryToCapital(Game):
     
     file_name = "countries_and_capitals.csv"
@@ -510,6 +516,8 @@ class CountryToCapital(Game):
     
 
     def new_question(self):
+        if isinstance(self,CapitalToCountry):
+            return super().new_question()
         question,self.answer = self.countries.pop()
         self.answer = self.answer.strip()
         self.question_text = self.font.render(question + "?",True,BLACK)
@@ -546,6 +554,25 @@ class CountryToCapital(Game):
         
 
         random.shuffle(self.countries)
+
+class CapitalToCountry(CountryToCapital):
+    Game.font.set_underline(True)
+    header_text= Game.font.render("COUNTRY OF",True, BLACK)
+    Game.font.set_underline(False)
+
+
+
+
+    def new_question(self):
+        self.answer,question= self.countries.pop()
+        self.answer = self.answer.strip()
+        question = question.strip()
+        self.question_text = self.font.render(question + "?",True,BLACK)
+
+        self.question_text_rect = self.question_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
+
+
+        return super().new_question()
 
 
 
