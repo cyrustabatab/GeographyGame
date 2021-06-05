@@ -11,10 +11,12 @@ FPS = 60
 WHITE = (255,) * 3
 BLACK = (0,) * 3
 RED = (255,0,0)
+YELLOW = (255,255,0)
 GREEN = (0,255,0)
 BGCOLOR = (64,224,208)
 ORANGE = (242,133,0)
 CORAL = (255,127,80)
+TIMER = pygame.USEREVENT + 10
 
 class Button(pygame.sprite.Sprite):
 
@@ -241,6 +243,7 @@ class Game(ABC):
     heart_image = pygame.transform.scale(pygame.image.load(os.path.join('images','heart.png')),(50,50))
     correct_sound = pygame.mixer.Sound('positive.wav')
     incorrect_sound = pygame.mixer.Sound('negative.wav')
+    buzzer_sound = pygame.mixer.Sound("buzzer.ogg")
     def __init__(self,screen,lives=3):
         self.screen = screen
         self.screen_width = self.screen.get_width()
@@ -351,12 +354,60 @@ class Game(ABC):
 
 
         return self.new_question()
+    
+
+
+
+
+    def initial_timer(self):
+
+
+
+        TIMER = pygame.USEREVENT + 5
+        pygame.time.set_timer(TIMER,1000)
+        
+        texts = [self.font.render("READY!",True,RED),self.font.render("SET!",True,YELLOW),self.font.render("GO!",True,GREEN)]
+        index = 0
+        text_rect = texts[0].get_rect(center=(self.screen_width//2,self.screen_height//2))
+        
+        timer_sound = pygame.mixer.Sound('racestart.wav')
+        
+        timer_sound.play()
+            
+        while True:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == TIMER:
+                    index += 1
+                    if index == len(texts):
+                        pygame.time.set_timer(TIMER,0)
+                        return
+                    text_rect = texts[index].get_rect(center=(self.screen_width//2,self.screen_height//2))
+
+
+
+            self.screen.fill(BGCOLOR)
+
+            
+
+            self.screen.blit(texts[index],text_rect)
+            pygame.display.update()
+
+
+
+
+
+
+            
+
 
 
     
     def play(self):
 
-        pygame.mixer.music.play(-1)
 
         self.user_answer = '|'
         
@@ -371,6 +422,16 @@ class Game(ABC):
         pygame.time.set_timer(FLICKER_EVENT,milliseconds)
         last_back_space_start = None
         result_start_time = None
+        seconds = 5
+        
+        times_up_text = self.font.render("TIMES UP!",True,RED)
+        times_up_text_rect = times_up_text.get_rect(center=self.correct_text_rect.center)
+        seconds_text = self.font.render(str(seconds),True,BLACK)
+        seconds_text_rect = seconds_text.get_rect(center=self.correct_text_rect.center)
+        self.initial_timer()
+        pygame.mixer.music.play(-1)
+        pygame.time.set_timer(TIMER,1000)
+
         while True:
 
             current_time = time.time()
@@ -419,6 +480,20 @@ class Game(ABC):
                     
 
                     user_answer_text,user_answer_rect = self._get_flicker_answer()
+                elif event.type == TIMER:
+                    seconds -= 1
+                    if seconds == 0:
+                        self.buzzer_sound.play()
+                        self.lives -= 1
+                        self.result_text= times_up_text
+                        self.result_text_rect = times_up_text_rect
+                        self.result_text_2 = self.font.render(self.answer,True,RED)
+                        self.result_text_2_rect = self.result_text_2.get_rect(center=(self.screen_width//2,self.question_text_rect.bottom + 50 + self.result_text_2.get_height()//2))
+                        result_start_time = time.time()
+                        pygame.time.set_timer(TIMER,0)
+                    elif seconds > 0:
+                        seconds_text = self.font.render(str(seconds),True,BLACK)
+
 
 
         
@@ -432,8 +507,12 @@ class Game(ABC):
                             pygame.mixer.music.load("Retro_No hope.ogg")
                             pygame.mixer.music.play()
                             self.game_over = True
-                        user_answer_text,user_answer_rect = self.new_question()
-                        result_start_time = None
+                        else:
+                            user_answer_text,user_answer_rect = self.new_question()
+                            seconds = 5
+                            seconds_text = self.font.render(str(seconds),True,BLACK)
+                            result_start_time = None
+                            pygame.time.set_timer(TIMER,1000)
 
 
                 keys_pressed = pygame.key.get_pressed()
@@ -463,7 +542,9 @@ class Game(ABC):
                 self.screen.blit(self.header_text,self.header_text_rect)
                 self.screen.blit(self.question_text,self.question_text_rect)
                 self.screen.blit(user_answer_text,user_answer_rect)
-                if result_start_time:
+                if not result_start_time:
+                    self.screen.blit(seconds_text,seconds_text_rect)
+                else:
                     self.screen.blit(self.result_text,self.result_text_rect)
                     if self.result_text_2:
                         self.screen.blit(self.result_text_2,self.result_text_2_rect)
@@ -474,6 +555,7 @@ class Game(ABC):
                 self.buttons.update(point)
                 self.buttons.draw(self.screen)
                 self.screen.blit(self.game_over_text,self.game_over_rect)
+
             pygame.display.update()
             clock.tick(FPS)
 
