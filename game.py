@@ -161,6 +161,8 @@ class Menu:
             mode = CountryToCapital
         elif number == 1:
             mode = CapitalToCountry
+        else:
+            mode = FlagToCountry
 
 
         
@@ -263,6 +265,10 @@ class Game(ABC):
         self.game_over = False
         self.result_text_2 = None
         self.lives = lives
+
+
+        #self._setup()
+        #self._read_data()
 
     
 
@@ -480,7 +486,7 @@ class Game(ABC):
                     
 
                     user_answer_text,user_answer_rect = self._get_flicker_answer()
-                elif event.type == TIMER:
+                elif not result_start_time and event.type == TIMER:
                     seconds -= 1
                     if seconds == 0:
                         self.buzzer_sound.play()
@@ -650,6 +656,70 @@ class CapitalToCountry(CountryToCapital):
         self.answer = self.answer.strip()
         question = question.strip()
         self.question_text = self.font.render(question + "?",True,BLACK)
+
+        self.question_text_rect = self.question_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
+
+
+        return super().new_question()
+
+
+class FlagToCountry(Game):
+    
+
+    dir_name = 'flag_images'
+    Game.font.set_underline(True)
+    header_text = Game.font.render("COUNTRY OF",True,BLACK)
+    Game.font.set_underline(False)
+    def __init__(self,screen):
+        super().__init__(screen)
+        
+        self._read_data()
+
+        self._setup()
+    def _read_data(self):
+        image_files = os.listdir(self.dir_name)
+
+
+        self.flags = [image_file for image_file in image_files]
+
+
+        random.shuffle(self.flags)
+
+        
+
+
+
+    
+    def _setup(self):
+        self.header_text_rect= self.header_text.get_rect(center=(self.screen_width//2,50 + self.header_text.get_height()//2))
+        self.correct_text_rect = self.correct_text.get_rect(center=(self.screen_width//2,self.header_text_rect.bottom + 50 + self.correct_text.get_height()//2))
+        self.incorrect_text_rect = self.incorrect_text.get_rect(center=(self.screen_width//2,self.header_text_rect.bottom + 50 + self.incorrect_text.get_height()//2))
+        self.new_question()
+
+    def new_question(self):
+
+        image_name = self.flags.pop()
+
+        self.answer,_ = image_name.split('.')
+
+
+        self.answer = self.answer.upper().replace('_','')
+
+
+
+
+
+        self.question_text = pygame.image.load(os.path.join(self.dir_name,image_name)).convert_alpha()
+        width,height = self.question_text.get_size()
+        ratio = width/height
+
+        new_height = 220
+        new_width = int(new_height * ratio)
+        print(new_height,new_width)
+
+
+        self.question_text = pygame.transform.scale(self.question_text,(new_width,new_height))
+
 
         self.question_text_rect = self.question_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
 
