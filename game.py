@@ -246,6 +246,7 @@ class Game(ABC):
     correct_sound = pygame.mixer.Sound('positive.wav')
     incorrect_sound = pygame.mixer.Sound('negative.wav')
     buzzer_sound = pygame.mixer.Sound("buzzer.ogg")
+    win_sound = pygame.mixer.Sound("win.mp3")
     def __init__(self,screen,lives=3):
         self.screen = screen
         self.screen_width = self.screen.get_width()
@@ -255,6 +256,13 @@ class Game(ABC):
         self.incorrect_text = self.font.render("INCORRECT!",True,RED)
         self.game_over_text = self.font.render("GAME OVER",True,RED)
         self.game_over_rect = self.game_over_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
+        self.win_text = self.font.render("YOU WIN!",True,GREEN)
+        self.win_text_rect = self.win_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
+        self.seconds = 0
+        self.seconds_text = self.font.render(str(self.seconds),True,BLACK)
+        self.streak = 0
+
+
         
         button_width = 500
         button_height = 100
@@ -272,7 +280,13 @@ class Game(ABC):
 
     
 
-    
+    def _check_win(self):
+        if not self.countries:
+            pygame.mixer.music.stop()
+            self.win_sound.play()
+            self.game_over = True
+            self.ending_text,self.ending_text_rect = self.win_text,self.win_text_rect
+
 
     def _draw_lives(self):
 
@@ -343,25 +357,28 @@ class Game(ABC):
             self.result_text_rect = self.incorrect_text_rect
             self.result_text_2 = self.font.render(self.answer,True,RED)
             self.result_text_2_rect = self.result_text_2.get_rect(center=(self.screen_width//2,self.question_text_rect.bottom + 50 + self.result_text_2.get_height()//2))
+            self.streak = 0
 
             self.lives -= 1
         else:
             self.correct_sound.play()
+            self.streak += 1
+            if self.streak == 0:
+                self.lives = min(self.lives + ,3)
             self.result_text_rect = self.correct_text_rect
             self.result_text = self.correct_text
             self.result_text_2 = None
+            self._check_win()
 
     
     def _reset(self):
+        self.countries = self.original.copy()
         self.game_over = False
         self.lives = 3
         pygame.mixer.music.load("music.ogg")
         pygame.mixer.music.play(-1)
 
-
         return self.new_question()
-    
-
 
 
 
@@ -401,9 +418,6 @@ class Game(ABC):
 
             self.screen.blit(texts[index],text_rect)
             pygame.display.update()
-
-
-
 
 
 
@@ -486,19 +500,22 @@ class Game(ABC):
                     
 
                     user_answer_text,user_answer_rect = self._get_flicker_answer()
-                elif not result_start_time and event.type == TIMER:
-                    seconds -= 1
-                    if seconds == 0:
-                        self.buzzer_sound.play()
-                        self.lives -= 1
-                        self.result_text= times_up_text
-                        self.result_text_rect = times_up_text_rect
-                        self.result_text_2 = self.font.render(self.answer,True,RED)
-                        self.result_text_2_rect = self.result_text_2.get_rect(center=(self.screen_width//2,self.question_text_rect.bottom + 50 + self.result_text_2.get_height()//2))
-                        result_start_time = time.time()
-                        pygame.time.set_timer(TIMER,0)
-                    elif seconds > 0:
-                        seconds_text = self.font.render(str(seconds),True,BLACK)
+                elif event.type == TIMER:
+                    if not result_start_time:
+                        seconds -= 1
+                        if seconds == 0:
+                            self.buzzer_sound.play()
+                            self.lives -= 1
+                            self.result_text= times_up_text
+                            self.result_text_rect = times_up_text_rect
+                            self.result_text_2 = self.font.render(self.answer,True,RED)
+                            self.result_text_2_rect = self.result_text_2.get_rect(center=(self.screen_width//2,self.question_text_rect.bottom + 50 + self.result_text_2.get_height()//2))
+                            result_start_time = time.time()
+                            pygame.time.set_timer(TIMER,0)
+                        elif seconds > 0:
+                            seconds_text = self.font.render(str(seconds),True,BLACK)
+                    self.seconds += 1
+                    self.seconds_text = self.font.render(str(self.seconds),True,BLACK)
 
 
 
@@ -512,6 +529,8 @@ class Game(ABC):
                         if self.lives == 0:
                             pygame.mixer.music.load("Retro_No hope.ogg")
                             pygame.mixer.music.play()
+                            self.ending_text = self.game_over_text
+                            self.ending_text_rect = self.game_over_rect
                             self.game_over = True
                         else:
                             user_answer_text,user_answer_rect = self.new_question()
@@ -556,11 +575,12 @@ class Game(ABC):
                         self.screen.blit(self.result_text_2,self.result_text_2_rect)
 
                 self._draw_lives()
+                self.screen.blit(self.seconds_text,(0,self.screen_height - self.seconds_text.get_height()))
             else:
                 point = pygame.mouse.get_pos()
                 self.buttons.update(point)
                 self.buttons.draw(self.screen)
-                self.screen.blit(self.game_over_text,self.game_over_rect)
+                self.screen.blit(self.ending_text,self.ending_text_rect)
 
             pygame.display.update()
             clock.tick(FPS)
@@ -640,7 +660,7 @@ class CountryToCapital(Game):
                 country,capital = line.split(',')
                 self.countries.append((country.upper(),capital.upper()))
         
-
+        self.original = self.countries.copy()
         random.shuffle(self.countries)
 
 class CapitalToCountry(CountryToCapital):
@@ -676,14 +696,20 @@ class FlagToCountry(Game):
         self._read_data()
 
         self._setup()
+    
+
+
+
     def _read_data(self):
         image_files = os.listdir(self.dir_name)
 
+        
+        
+        self.countries = [image_file for image_file in image_files if not image_file.startswith('.')]
+        self.original = self.countries.copy()
 
-        self.flags = [image_file for image_file in image_files]
 
-
-        random.shuffle(self.flags)
+        random.shuffle(self.countries)
 
         
 
@@ -698,12 +724,12 @@ class FlagToCountry(Game):
 
     def new_question(self):
 
-        image_name = self.flags.pop()
+        image_name = self.countries.pop()
 
         self.answer,_ = image_name.split('.')
 
 
-        self.answer = self.answer.upper().replace('_','')
+        self.answer = self.answer.upper().replace('_',' ')
 
 
 
