@@ -90,23 +90,27 @@ class Menu:
         cols = 9
         width = height = 450
         size = 200
-        gap = 50
+        gap = 40
         globe = Globe(self.screen_width//2,self.title_text_rect.bottom + gap * 2,size,rows,cols,width,height,os.path.join('images','globe.png'))
         self.globe = pygame.sprite.GroupSingle(globe)
 
         top = globe.rect.bottom + gap 
         self.buttons = pygame.sprite.Group()
-        labels = ('COUNTRY ' + u"\u2192" + " CAPITAL" ,'CAPITAL ' + u"\u2192" + ' COUNTRY','FLAG ' + u"\u2192" + ' COUNTRY')
+        labels = ('COUNTRY ' + u"\u2192" + " CAPITAL" ,'CAPITAL ' + u"\u2192" + ' COUNTRY','FLAG ' + u"\u2192" + ' COUNTRY','BORDER ' + u"\u2192" +" COUNTRY")
         button_width = 400
-        button_height = 100
+
+
+        button_height = 75
         button_font = pygame.font.SysFont("calibri",40)
         pygame.mixer.music.load('mainmenu.ogg')
 
 
-        for i in range(3):
+        for i in range(len(labels)):
             button = Button(self.screen_width//2 -button_width//2,top + (button_height + gap) * i,labels[i],BLACK,button_font,RED,button_width,button_height)
             self.buttons.add(button)
         
+
+
         self._start()
 
     def _start(self):
@@ -128,7 +132,7 @@ class Menu:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     point = pygame.mouse.get_pos()
                     for i,button in enumerate(self.buttons):
-                        if button.clicked_on(point):
+                        if i != len(self.buttons) - 1 and button.clicked_on(point):
                             result= self.instructions(i)
                             break
 
@@ -242,6 +246,7 @@ class Menu:
 class Game(ABC):
 
     font = pygame.font.SysFont("calibri",100,bold=True)
+    small_font = pygame.font.SysFont("calibri",75,bold=True)
     heart_image = pygame.transform.scale(pygame.image.load(os.path.join('images','heart.png')),(50,50))
     correct_sound = pygame.mixer.Sound('positive.wav')
     incorrect_sound = pygame.mixer.Sound('negative.wav')
@@ -255,6 +260,8 @@ class Game(ABC):
         self.correct_text = self.font.render("CORRECT!",True,GREEN)
         self.incorrect_text = self.font.render("INCORRECT!",True,RED)
         self.game_over_text = self.font.render("GAME OVER",True,RED)
+        self.correct = 0
+        self.score_text = self.font.render("0",True,BLACK)
         self.game_over_rect = self.game_over_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
         self.win_text = self.font.render("YOU WIN!",True,GREEN)
         self.win_text_rect = self.win_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
@@ -356,15 +363,21 @@ class Game(ABC):
             self.result_text = self.incorrect_text
             self.result_text_rect = self.incorrect_text_rect
             self.result_text_2 = self.font.render(self.answer,True,RED)
+            if self.result_text_2.get_width() > self.screen_width:
+                self.result_text_2 = self.small_font.render(self.answer,True,RED)
+
             self.result_text_2_rect = self.result_text_2.get_rect(center=(self.screen_width//2,self.question_text_rect.bottom + 50 + self.result_text_2.get_height()//2))
             self.streak = 0
 
             self.lives -= 1
         else:
             self.correct_sound.play()
+            self.correct += 1
+            self.score_text = self.font.render(str(self.correct),True,BLACK)
+
             self.streak += 1
             if self.streak == 0:
-                self.lives = min(self.lives + ,3)
+                self.lives = min(self.lives +1 ,3)
             self.result_text_rect = self.correct_text_rect
             self.result_text = self.correct_text
             self.result_text_2 = None
@@ -373,6 +386,7 @@ class Game(ABC):
     
     def _reset(self):
         self.countries = self.original.copy()
+        random.shuffle(self.countries)
         self.game_over = False
         self.lives = 3
         pygame.mixer.music.load("music.ogg")
@@ -576,6 +590,7 @@ class Game(ABC):
 
                 self._draw_lives()
                 self.screen.blit(self.seconds_text,(0,self.screen_height - self.seconds_text.get_height()))
+                self.screen.blit(self.score_text,(self.screen_width - self.score_text.get_width(),self.screen_height - self.seconds_text.get_height()))
             else:
                 point = pygame.mouse.get_pos()
                 self.buttons.update(point)
