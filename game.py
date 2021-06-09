@@ -376,7 +376,7 @@ class Game(ABC):
             self.score_text = self.font.render(str(self.correct),True,BLACK)
 
             self.streak += 1
-            if self.streak == 0:
+            if self.streak == 10:
                 self.lives = min(self.lives +1 ,3)
             self.result_text_rect = self.correct_text_rect
             self.result_text = self.correct_text
@@ -388,6 +388,13 @@ class Game(ABC):
         self.countries = self.original.copy()
         random.shuffle(self.countries)
         self.game_over = False
+        self.streak = 0
+        self.correct = 0
+        self.score_text = self.font.render(str(self.correct),True,BLACK)
+
+        self.seconds = 0
+        self.seconds_text = self.font.render(str(self.seconds),True,BLACK)
+
         self.lives = 3
         pygame.mixer.music.load("music.ogg")
         pygame.mixer.music.play(-1)
@@ -609,7 +616,10 @@ class Game(ABC):
         user_answer_rect = user_answer_text.get_rect(center=(self.screen_width//2,self.screen_height - bottom_gap -  user_answer_text.get_height()//2))
         return user_answer_text,user_answer_rect
 
-
+    
+    @abstractmethod
+    def _update_high_score_if_needed(self):
+        pass
 
     @abstractmethod
     def _setup(self):
@@ -627,6 +637,8 @@ class CountryToCapital(Game):
     
     file_name = "countries_and_capitals.csv"
     Game.font.set_underline(True)
+    high_score_file_name = "country_to_capital_high.txt"
+
     header_text= Game.font.render("CAPITAL OF",True, BLACK)
     Game.font.set_underline(False)
     def __init__(self,screen):
@@ -637,6 +649,21 @@ class CountryToCapital(Game):
         self._setup()
 
     
+
+    def _update_high_score_if_needed(self):
+
+
+        if self.score > self.high_scores[-1]:
+            self.high_scores.pop()
+            self.high_scores.append(self.score)
+            self.high_scores.sort()
+
+            with open(self.high_score_file_name,'w') as f:
+                for score in self.high_scores:
+                    f.write(str(score) + '\n')
+
+
+
 
     def new_question(self):
         if isinstance(self,CapitalToCountry):
@@ -667,6 +694,13 @@ class CountryToCapital(Game):
 
 
     def _read_data(self):
+
+
+        with open(self.high_score_file_name,'r') as f:
+            self.high_scores = list(map(int,f.readlines()))
+
+
+
         self.countries = []
         with open(self.file_name,'r') as f:
             for i,line in enumerate(f):
