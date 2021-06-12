@@ -1,4 +1,4 @@
-import pygame,sys,os
+import pygame,sys,os,pycountry
 from abc import ABC,abstractmethod
 from globe import Globe
 import time
@@ -132,7 +132,7 @@ class Menu:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     point = pygame.mouse.get_pos()
                     for i,button in enumerate(self.buttons):
-                        if i != len(self.buttons) - 1 and button.clicked_on(point):
+                        if button.clicked_on(point):
                             result= self.instructions(i)
                             break
 
@@ -165,8 +165,10 @@ class Menu:
             mode = CountryToCapital
         elif number == 1:
             mode = CapitalToCountry
-        else:
+        elif number == 2:
             mode = FlagToCountry
+        else:
+            mode = BorderToCountry
 
 
         
@@ -617,7 +619,6 @@ class Game(ABC):
         return user_answer_text,user_answer_rect
 
     
-    @abstractmethod
     def _update_high_score_if_needed(self):
         pass
 
@@ -732,6 +733,7 @@ class CapitalToCountry(CountryToCapital):
         return super().new_question()
 
 
+
 class FlagToCountry(Game):
     
 
@@ -772,7 +774,10 @@ class FlagToCountry(Game):
         self.new_question()
 
     def new_question(self):
-
+        
+        if isinstance(self,BorderToCountry):
+            return super().new_question()
+        
         image_name = self.countries.pop()
 
         self.answer,_ = image_name.split('.')
@@ -800,6 +805,39 @@ class FlagToCountry(Game):
 
 
         return super().new_question()
+
+class BorderToCountry(FlagToCountry):
+
+    dir_name = 'country_images'
+
+
+    def new_question(self):
+
+        image_name = self.countries.pop()
+
+        code,_ = image_name.split('.')
+
+
+        self.answer = pycountry.subdivisions.get(code=f"US-{code}").name.upper()
+
+
+        self.question_text = pygame.image.load(os.path.join(self.dir_name,image_name)).convert_alpha()
+        width,height = self.question_text.get_size()
+        ratio = width/height
+
+        new_height = 220
+        new_width = int(new_height * ratio)
+
+
+        self.question_text = pygame.transform.scale(self.question_text,(new_width,new_height))
+
+
+        self.question_text_rect = self.question_text.get_rect(center=(self.screen_width//2,self.screen_height//2))
+
+
+        return super().new_question()
+
+
 
 
 
